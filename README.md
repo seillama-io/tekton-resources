@@ -2,6 +2,14 @@
 
 General purpose Tekton resources for DevSecOps on Kubernetes.
 
+## Concept
+
+The goal of this project is to provide an easy to use set of tools to implement modern DevSecOps practices on Kubernetes (or Red Hat OpenShift).
+
+The implemented pipeline is the following:
+
+![Pipeline design](design/pipeline.png)
+
 ## Tekton Hub Tasks
 
 Some of the Tekton tasks we use are based on Tekton Hub to reduce maintenance cost, the following shows how to retrieve these tasks.
