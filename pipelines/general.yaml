@@ -1,0 +1,29 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: general
+spec:
+  params:
+    - name: git-repository
+      type: string
+      description: Source code repository
+  workspaces:
+    - name: shared-data
+  tasks:
+    - name: git-clone
+      params:
+        - name: url
+          value: "$(params.git-repository)"
+      taskRef:
+        name: git-clone
+      workspaces:
+        - name: output
+          workspace: shared-data
+    - name: detect-secrets
+      taskRef:
+        name: detect-secrets
+      runAfter:
+        - git-clone
+      workspaces:
+        - name: source
+          workspace: shared-data

@@ -1,0 +1,15 @@
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  generateName: general-
+spec:
+  serviceAccountName: pipeline
+  pipelineRef:
+    name: general
+  params:
+    - name: git-repository
+      value: CHANGE_ME
+  workspaces:
+    - name: shared-data
+      persistentVolumeClaim:
+        claimName: general-pipeline
