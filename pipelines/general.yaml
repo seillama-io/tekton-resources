@@ -4,11 +4,31 @@ metadata:
   name: general
 spec:
   params:
+    - name: app-name
+      type: string
+      description: Application name
     - name: git-repository
       type: string
       description: Source code repository
+    - name: img-registry
+      type: string
+      description: Destination registry for built image
+    - name: sonar-url
+      type: string
+      description: SonarQube server URL
+      default: http://sonarqube.sonarqube
+    - name: sonar-org
+      type: string
+      description: The organization in sonarqube where the project exists
+      default: user
+    - name: build-tls-verify
+      type: string
+      description: Verify the TLS on the registry endpoint (for push/pull to a non-TLS registry)
+      default: "true"
   workspaces:
     - name: shared-data
+    - name: sonar-credentials
+    - name: registry-config
   tasks:
     - name: git-clone
       params:
@@ -27,3 +47,44 @@ spec:
       workspaces:
         - name: source
           workspace: shared-data
+    - name: code-scan
+      params:
+        - name: SONAR_HOST_URL
+          value: "$(params.sonar-url)"
+        - name: SONAR_PROJECT_KEY
+          value: "$(params.app-name)"
+        - name: SONAR_ORGANIZATION
+          value: "$(params.sonar-org)"
+      taskRef:
+        name: sonarqube-scanner
+      runAfter:
+        - detect-secrets
+      workspaces:
+        - name: source
+          workspace: shared-data
+        - name: sonar-credentials
+          workspace: sonar-credentials
+    - name: dockerfile-lint
+      taskRef:
+        name: hadolint
+      runAfter:
+        - detect-secrets
+      workspaces:
+        - name: source
+          workspace: shared-data
+    - name: img-build
+      taskRef:
+        name: buildah
+      params:
+        - name: IMAGE
+          value: "$(params.img-registry)/$(params.app-name):$(tasks.git-clone.results.commit)"
+        - name: TLSVERIFY
+          value: $(params.build-tls-verify)
+      runAfter:
+        - code-scan
+        - dockerfile-lint
+      workspaces:
+        - name: source
+          workspace: shared-data
+        - name: dockerconfig
+          workspace: registry-config

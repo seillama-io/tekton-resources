@@ -12,7 +12,7 @@ The implemented pipeline is the following:
 
 ## Tekton Hub Tasks
 
-Some of the Tekton tasks we use are based on Tekton Hub to reduce maintenance cost, the following shows how to retrieve these tasks.
+Some of the Tekton tasks we use are based on Tekton Hub to reduce maintenance footprint, the following shows how to retrieve these tasks.
 
 Prereqs:
 - [Tekton CLI](https://tekton.dev/docs/cli/): `tkn`
@@ -24,6 +24,11 @@ tkn hub get task hadolint --version 0.1 > tasks/dockerfile-lint/dockerfile-lint.
 tkn hub get task buildah --version 0.5 > tasks/img-build/img-build.yaml
 tkn hub get task trivy-scanner --version 0.2 > tasks/img-scan/img-scan.yaml
 ```
+
+## Prerequisites
+
+This set of Tekton tasks relies on third party Open Source software:
+- [SonarQube](https://docs.seillama.dev/kubernetes/software/sonarqube)
 
 ## Getting started
 
@@ -40,7 +45,10 @@ tkn hub get task trivy-scanner --version 0.2 > tasks/img-scan/img-scan.yaml
 3. Create Tekton resources:
     ```sh
     kubectl apply -f tasks/git-clone/git-clone.yaml
-    kubectl apply -f tasks/detect-secrets
+    kubectl apply -f tasks/detect-secrets/detect-secrets.yaml
+    kubectl apply -f tasks/code-scan/code-scan.yaml
+    kubectl apply -f tasks/dockerfile-lint/dockerfile-lint.yaml
+    kubectl apply -f tasks/img-build/img-build.yaml
     kubectl apply -f pipelines/general.yaml
     ```
 4. Configure Tekton run resources from given template:
@@ -48,11 +56,16 @@ tkn hub get task trivy-scanner --version 0.2 > tasks/img-scan/img-scan.yaml
     export GIT_URL=<YOUR_GIT_REPO_URL>
     export GIT_USERNAME=<YOUR_GIT_USERNAME>
     export GIT_TOKEN=<YOUR_GIT_PERSONNAL_ACCESS_TOKEN>
+    export APP_NAME=<YOUR_APP_NAME>
+    export SONAR_USERNAME=<SONARQUBE_USERNAME>
+    export SONAR_PASSWORD=<SONARQUBE_PASSWORD>
     cp -R run-template run
     yq -i '.stringData.username = env(GIT_USERNAME) | .stringData.password=env(GIT_TOKEN)' run/credentials.yaml
     yq -i '.spec.params[0].value = env(GIT_URL)' run/prun.yaml
+    yq -i '.spec.params[1].value = env(APP_NAME)' run/prun.yaml
     kubectl apply -f run/credentials.yaml
     kubectl apply -f run/pvc.yaml
+    kubectl create secret generic sonar-credentials --from-literal login=${SONAR_USERNAME} --from-literal password=${SONAR_PASSWORD}
     ```
 5. Allow `pipeline` service account to use Git credentials:
     ```sh

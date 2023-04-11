@@ -9,7 +9,19 @@ spec:
   params:
     - name: git-repository
       value: CHANGE_ME
+    - name: app-name
+      value: CHANGE_ME
+    - name: img-registry
+      value: CHANGE_ME
+    - name: build-tls-verify
+      value: "true" # set to false if using insecure image registry
   workspaces:
     - name: shared-data
       persistentVolumeClaim:
         claimName: general-pipeline
+    - name: sonar-credentials
+      secret:
+        secretName: sonar-credentials
+    - name: registry-config
+      secret:
+        secretName: registry-config
