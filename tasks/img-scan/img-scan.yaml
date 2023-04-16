@@ -26,7 +26,7 @@ spec:
       description: The Arguments to be passed to Trivy command.
       type: array
     - name: TRIVY_IMAGE
-      default: docker.io/aquasec/trivy@sha256:dea76d4b50c75125cada676a87ac23de2b7ba4374752c6f908253c3b839201d9
+      default: docker.io/aquasec/trivy@sha256:10e9175f16de79db502a10bf5ea815144102c93f16b52daa70be2f80806b5cad
       description: Trivy scanner image to be used
     - name: IMAGE_PATH
       description: Image or Path to be scanned by trivy.
@@ -52,7 +52,7 @@ spec:
             tar xvf ./db.tar.gz -C $HOME/.cache/trivy/db
             cmd+="--skip-update "
           fi
-          cmd+="$(params.IMAGE_PATH)"
+          cmd="$cmd $(params.IMAGE_PATH)"
           echo "Running trivy task with command below"
           echo "$cmd"
           eval "$cmd"

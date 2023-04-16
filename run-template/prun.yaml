@@ -15,6 +15,15 @@ spec:
       value: CHANGE_ME
     - name: build-tls-verify
       value: "true" # set to false if using insecure image registry
+    - name: img-scan-args
+      value:
+        - "image"
+        - "--exit-code"
+        - "1"
+        - "--ignore-unfixed"
+        - "--severity"
+        - "HIGH,CRITICAL"
+        # - "--insecure" # uncomment if using insecure image registry
   workspaces:
     - name: shared-data
       persistentVolumeClaim:
@@ -25,3 +34,5 @@ spec:
     - name: registry-config
       secret:
         secretName: registry-config
+    - name: manifest-dir
+      emptyDir: {}

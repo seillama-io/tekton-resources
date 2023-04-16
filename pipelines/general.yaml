@@ -25,10 +25,20 @@ spec:
       type: string
       description: Verify the TLS on the registry endpoint (for push/pull to a non-TLS registry)
       default: "true"
+    - name: img-scan-args
+      type: array
+      description: The Arguments to be passed to the Trivy scan command
+      default:
+        - "image"
+        - "--exit-code"
+        - "1"
+        - "--severity"
+        - "HIGH,CRITICAL"
   workspaces:
     - name: shared-data
     - name: sonar-credentials
     - name: registry-config
+    - name: manifest-dir
   tasks:
     - name: git-clone
       params:
@@ -88,3 +98,16 @@ spec:
           workspace: shared-data
         - name: dockerconfig
           workspace: registry-config
+    - name: img-scan
+      taskRef:
+        name: trivy-scanner
+      params:
+        - name: IMAGE_PATH
+          value: "$(params.img-registry)/$(params.app-name):$(tasks.git-clone.results.commit)"
+        - name: ARGS
+          value: ["$(params.img-scan-args[*])"]
+      runAfter:
+        - img-build
+      workspaces:
+        - name: manifest-dir
+          workspace: manifest-dir

@@ -1,4 +1,9 @@
 run/
+*.ignore*
+
+# Drawio
+*.bkp
+*.dtmp
 
 # General
 .DS_Store
