@@ -5,109 +5,136 @@ metadata:
 spec:
   params:
     - name: app-name
-      type: string
       description: Application name
+      type: string
+    - name: app-port
+      description: Port on which the application should run
+      type: string
+      default: 3000
     - name: git-repository
-      type: string
       description: Source code repository
-    - name: img-registry
       type: string
-      description: Destination registry for built image
-    - name: sonar-url
+    - name: git-revision
+      default: main
+      description: "Git Revision to checkout. (branch, tag, sha, ref, etc...) "
       type: string
-      description: SonarQube server URL
-      default: http://sonarqube.sonarqube
-    - name: sonar-org
+    - name: img-server
+      description: Destination registry server for built image (quay.io, docker.io, ...)
       type: string
-      description: The organization in sonarqube where the project exists
-      default: user
+    - name: img-namespace
+      description: Destination registry namespace for built image (e.g quay username/organisation)
+      type: string
     - name: build-tls-verify
-      type: string
-      description: Verify the TLS on the registry endpoint (for push/pull to a non-TLS registry)
       default: "true"
+      description: >-
+        Verify the TLS on the registry endpoint (for push/pull to a non-TLS
+        registry)
+      type: string
     - name: img-scan-args
-      type: array
-      description: The Arguments to be passed to the Trivy scan command
       default:
-        - "image"
+        - image
         - "--exit-code"
         - "1"
         - "--severity"
         - "HIGH,CRITICAL"
-  workspaces:
-    - name: shared-data
-    - name: sonar-credentials
-    - name: registry-config
-    - name: manifest-dir
+      description: The Arguments to be passed to the Trivy scan command
+      type: array
   tasks:
     - name: git-clone
       params:
         - name: url
-          value: "$(params.git-repository)"
+          value: $(params.git-repository)
+        - name: revision
+          value: $(params.git-revision)
       taskRef:
+        kind: Task
         name: git-clone
       workspaces:
         - name: output
           workspace: shared-data
     - name: detect-secrets
-      taskRef:
-        name: detect-secrets
       runAfter:
         - git-clone
+      taskRef:
+        kind: Task
+        name: detect-secrets
       workspaces:
         - name: source
           workspace: shared-data
     - name: code-scan
-      params:
-        - name: SONAR_HOST_URL
-          value: "$(params.sonar-url)"
-        - name: SONAR_PROJECT_KEY
-          value: "$(params.app-name)"
-        - name: SONAR_ORGANIZATION
-          value: "$(params.sonar-org)"
-      taskRef:
-        name: sonarqube-scanner
       runAfter:
         - detect-secrets
+      taskRef:
+        kind: Task
+        name: sonarqube-scanner
       workspaces:
         - name: source
           workspace: shared-data
-        - name: sonar-credentials
-          workspace: sonar-credentials
     - name: dockerfile-lint
-      taskRef:
-        name: hadolint
       runAfter:
         - detect-secrets
+      taskRef:
+        kind: Task
+        name: hadolint
       workspaces:
         - name: source
           workspace: shared-data
     - name: img-build
-      taskRef:
-        name: buildah
       params:
         - name: IMAGE
-          value: "$(params.img-registry)/$(params.app-name):$(tasks.git-clone.results.commit)"
+          value: >-
+            $(params.img-server)/$(params.img-namespace)/$(params.app-name):$(tasks.git-clone.results.commit)
         - name: TLSVERIFY
           value: $(params.build-tls-verify)
+        - name: BUILDER_IMAGE
+          value: >-
+            registry.redhat.io/rhel8/buildah@sha256:00795fafdab9bbaa22cd29d1faa1a01e604e4884a2c935c1bf8e3d1f0ad1c084
+        - name: STORAGE_DRIVER
+          value: vfs
       runAfter:
         - code-scan
         - dockerfile-lint
+      taskRef:
+        kind: Task
+        name: buildah
       workspaces:
         - name: source
           workspace: shared-data
         - name: dockerconfig
           workspace: registry-config
     - name: img-scan
-      taskRef:
-        name: trivy-scanner
       params:
         - name: IMAGE_PATH
-          value: "$(params.img-registry)/$(params.app-name):$(tasks.git-clone.results.commit)"
+          value: >-
+            $(params.img-server)/$(params.img-namespace)/$(params.app-name):$(tasks.git-clone.results.commit)
         - name: ARGS
-          value: ["$(params.img-scan-args[*])"]
+          value:
+            - "$(params.img-scan-args[*])"
       runAfter:
         - img-build
+      taskRef:
+        kind: Task
+        name: trivy-scanner
       workspaces:
         - name: manifest-dir
           workspace: manifest-dir
+    - name: deploy
+      params:
+        - name: app-name
+          value: $(params.app-name)
+        - name: app-port
+          value: $(params.app-port)
+        - name: image
+          value: $(params.img-server)/$(params.img-namespace)/$(params.app-name):$(tasks.git-clone.results.commit)
+      runAfter:
+        - img-scan
+      taskRef:
+        kind: Task
+        name: deploy
+      workspaces:
+        - name: source
+          workspace: shared-data
+  workspaces:
+    - name: shared-data
+    - name: registry-config
+    - name: manifest-dir

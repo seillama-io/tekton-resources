@@ -1,0 +1,36 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: deploy
+  labels:
+    app.kubernetes.io/version: "0.0.1"
+  annotations:
+    tekton.dev/displayName: "Deploy"
+    tekton.dev/platforms: "linux/amd64"
+    description: Deploys the application to the CI environment for verification
+spec:
+  params:
+    - name: app-name
+      description: Application name
+      type: string
+    - name: app-port
+      description: Port on which the application should run
+      type: string
+    - name: image
+      description: Image to deploy
+      type: string
+    - name: step-image
+      description: Image to run during the deploy step
+      default: quay.io/cloudnativetoolkit/cli-tools:latest
+      type: string
+  workspaces:
+    - name: source
+      description: "Workspace containing the code which needs to be deployed"
+  steps:
+    - name: deploy
+      image: $(params.step-image)
+      script: |
+        #!/usr/bin/env bash
+        kubectl create deploy $(params.app-name) --image=$(params.image) --port $(params.app-port)
+        kubectl wait --timeout=60s --for=condition=Available deploy/$(params.app-name)
+        kubectl expose deploy $(params.app-name) --port $(params.app-port)
